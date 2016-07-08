@@ -108,8 +108,15 @@ func bucketQuantile(q model.SampleValue, buckets buckets) float64 {
 }
 
 // qauntile calculates the given quantile of a slice of floats.
+//
 // The slice will be sorted.
+// If 'values' has zero elements, NaN is returned.
+// If q<0, -Inf is returned.
+// If q>1, +Inf is returned.
 func quantile(q float64, values []float64) float64 {
+	if len(values) == 0 {
+		return math.NaN()
+	}
 	if q < 0 {
 		return math.Inf(-1)
 	}

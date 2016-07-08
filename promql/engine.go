@@ -1060,6 +1060,7 @@ type groupedAggregation struct {
 	labels           metric.Metric
 	value            model.SampleValue
 	valuesSquaredSum model.SampleValue
+	values           []float64
 	groupCount       int
 	heap             vectorByValueHeap
 	reverseHeap      vectorByReverseValueHeap
@@ -1075,6 +1076,10 @@ func (ev *evaluator) aggregation(op itemType, grouping model.LabelNames, without
 		if k < 1 {
 			return vector{}
 		}
+	}
+	var q float64
+	if op == itemQuantile {
+		q = ev.evalFloat(param)
 	}
 	var valueLabel model.LabelName
 	if op == itemCountValues {
@@ -1131,6 +1136,7 @@ func (ev *evaluator) aggregation(op itemType, grouping model.LabelNames, without
 				labels:           m,
 				value:            s.Value,
 				valuesSquaredSum: s.Value * s.Value,
+				values:           []float64{float64(s.Value)},
 				groupCount:       1,
 			}
 			if op == itemTopK {
@@ -1181,6 +1187,8 @@ func (ev *evaluator) aggregation(op itemType, grouping model.LabelNames, without
 				}
 				heap.Push(&groupedResult.reverseHeap, &sample{Value: s.Value, Metric: s.Metric})
 			}
+		case itemQuantile:
+			groupedResult.values = append(groupedResult.values, float64(s.Value))
 		default:
 			panic(fmt.Errorf("expected aggregation operator but got %q", op))
 		}
@@ -1223,6 +1231,8 @@ func (ev *evaluator) aggregation(op itemType, grouping model.LabelNames, without
 				})
 			}
 			continue // Bypass default append.
+		case itemQuantile:
+			aggr.value = model.SampleValue(quantile(q, aggr.values))
 		default:
 			// For other aggregations, we already have the right value.
 		}
